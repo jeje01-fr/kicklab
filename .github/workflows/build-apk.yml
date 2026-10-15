@@ -1,0 +1,61 @@
+name: Construire l'APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Vérifier les fichiers présents
+        run: ls -la
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Installer les dépendances
+        run: npm install
+
+      - name: Créer le projet Android
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Compiler l'APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Renommer l'APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk kicklab.apk
+
+      - name: Garder l'APK dans les artefacts du build
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicklab
+          path: kicklab.apk
+
+      - name: Publier l'APK dans les Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: derniere-version
+          name: Dernière version
+          body: APK à télécharger et installer sur Android.
+          files: kicklab.apk
