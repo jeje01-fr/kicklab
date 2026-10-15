@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KickLab — grosse caisse aléatoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121317; --panel:#1B1D22; --line:#2E323A; --ink:#ECEEF0; --muted:#8B92A0;
+  --kick:#FF7A45; --hh:#5FD3C4; --sn:#F2C14E; --off:#2A2D34;
+  --font:"Bricolage Grotesque",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme: dark;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--font);-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:32px 20px 56px}
+h1{font-weight:800;font-size:clamp(1.8rem,5vw,2.5rem);letter-spacing:-.02em;margin:0 0 2px}
+.lede{color:var(--muted);margin:0 0 28px;max-width:52ch}
+:focus-visible{outline:2px solid var(--kick);outline-offset:2px}
+
+.levels{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px}
+.lvl{font:600 .95rem var(--font);padding:14px 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;text-align:center}
+.lvl b{display:block;font:700 1.3rem var(--mono);color:var(--ink);margin-bottom:2px}
+.lvl.active{border-color:var(--kick);background:linear-gradient(180deg,rgba(255,122,69,.18),rgba(255,122,69,.05));color:var(--ink)}
+.lvl-desc{color:var(--muted);font-size:.88rem;margin:0 0 26px;min-height:2.6em}
+
+.seq{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 16px 14px;overflow-x:auto}
+.row{display:grid;grid-template-columns:52px repeat(16,1fr);align-items:center;gap:4px;padding:5px 0}
+.row + .row{border-top:1px dashed var(--line)}
+.rlabel{font:600 .78rem var(--mono);color:var(--muted)}
+.cell{aspect-ratio:1;border-radius:6px;background:var(--off);position:relative;min-width:18px}
+.cell.beat{outline:1px solid var(--line);outline-offset:-1px}
+.cell.on.hh{background:var(--hh)}
+.cell.on.sn{background:var(--sn)}
+.cell.on.kk{background:var(--kick)}
+.cell.playhead::after{content:"";position:absolute;inset:-3px;border-radius:8px;border:2px solid var(--ink);opacity:.6}
+.counts{display:grid;grid-template-columns:52px repeat(16,1fr);gap:4px;padding-top:8px;margin-top:4px}
+.counts span{font:500 .68rem var(--mono);color:var(--muted);text-align:center}
+
+.hero{display:flex;justify-content:center;margin:24px 0}
+.gen{font:700 1.05rem var(--font);color:#1A1200;background:var(--kick);border:none;border-radius:999px;padding:16px 34px;cursor:pointer;box-shadow:0 8px 24px -8px rgba(255,122,69,.55)}
+.gen:hover{filter:brightness(1.07)}
+.gen:active{transform:translateY(1px)}
+
+.controls{display:grid;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px;margin-top:18px}
+.ctrl-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ctrl-row label.main{font-size:.92rem;color:var(--muted);min-width:170px}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--kick)}
+.readout{font:600 .95rem var(--mono);min-width:2.5em;text-align:right}
+.check{display:flex;align-items:center;gap:10px;font-size:.92rem;color:var(--muted)}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--kick)}
+
+.transport{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+.btn{font:600 .9rem var(--font);background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:var(--kick)}
+.btn.play.on{border-color:var(--hh);color:var(--hh)}
+.tempo-box{display:flex;align-items:center;gap:8px;font:600 .9rem var(--mono)}
+.tempo-box button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--off);color:var(--ink);cursor:pointer;font:600 1rem var(--font)}
+
+.gs-link{display:block;text-align:center;margin-top:20px;color:var(--muted);font-size:.9rem;text-decoration:none}
+.gs-link:hover{color:var(--ink)}
+
+footer{margin-top:34px;color:var(--muted);font-size:.84rem}
+@media (max-width:520px){
+  .row{grid-template-columns:40px repeat(16,1fr)}
+  .counts{grid-template-columns:40px repeat(16,1fr)}
+  .rlabel{font-size:.68rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>KickLab</h1>
+  <p class="lede">Un groove de charleston et caisse claire fixe, une grosse caisse aléatoire par-dessus. Génère, écoute, joue en même temps — tous les jours un nouveau rythme pour travailler ton indépendance.</p>
+
+  <div class="levels" role="radiogroup" aria-label="Niveau de difficulté" id="levels"></div>
+  <p class="lvl-desc" id="lvlDesc" aria-live="polite"></p>
+
+  <div class="seq">
+    <div class="row"><span class="rlabel">HI-HAT</span><div class="cells" id="rowHH" style="display:contents"></div></div>
+    <div class="row"><span class="rlabel">CAISSE</span><div class="cells" id="rowSN" style="display:contents"></div></div>
+    <div class="row"><span class="rlabel">KICK</span><div class="cells" id="rowKK" style="display:contents"></div></div>
+    <div class="counts" id="counts"></div>
+  </div>
+
+  <div class="hero">
+    <button class="gen" id="genBtn" type="button">🎲 Générer un groove</button>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-row">
+      <label class="main" for="density">Nombre de grosses caisses</label>
+      <input type="range" id="density" min="2" max="10" value="4" step="1">
+      <span class="readout" id="densityVal">4</span>
+    </div>
+    <div class="ctrl-row">
+      <label class="check"><input type="checkbox" id="avoidBackbeat" checked> Empêcher la grosse caisse sur les temps 2 et 4 (en même temps que la caisse claire)</label>
+    </div>
+  </div>
+
+  <div class="transport">
+    <button class="btn play" id="playBtn" type="button">▶ Jouer</button>
+    <div class="tempo-box">
+      <button id="tempoDown" type="button" aria-label="Ralentir">−</button>
+      <span id="tempoVal">90</span> BPM
+      <button id="tempoUp" type="button" aria-label="Accélérer">+</button>
+    </div>
+    <label class="check"><input type="checkbox" id="clickToggle"> Clic métronome (noires)</label>
+  </div>
+
+  <a class="gs-link" id="gsLink" href="#" target="_blank" rel="noopener noreferrer">Ouvrir ce groove dans Groove Scribe →</a>
+
+  <footer>Niveau 1 : grosse caisse synchro avec le charleston. Niveau 2 : ajoute les contretemps (entre deux charlestons). Niveau 3 : ajoute des doubles coups. Niveau 4 : tout est permis, y compris les séries de coups.</footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const N = 16;
+const HH = Array.from({length:N}, (_,i) => i % 2 === 0);        // charleston: croches régulières
+const SN = Array.from({length:N}, (_,i) => i === 4 || i === 12); // caisse claire: temps 2 et 4
+const ON_BEAT = HH.map((v,i) => v ? i : -1).filter(i => i >= 0);
+const OFF_BEAT = HH.map((v,i) => !v ? i : -1).filter(i => i >= 0);
+const COUNT_LABELS = ['1','e','&','a','2','e','&','a','3','e','&','a','4','e','&','a'];
+
+const LEVELS = [
+  { n:1, title:'Synchro',   desc:'La grosse caisse tombe toujours en même temps qu\u2019un coup de charleston.' },
+  { n:2, title:'Contretemps', desc:'La grosse caisse peut aussi tomber entre deux coups de charleston.' },
+  { n:3, title:'Doubles',   desc:'Ajoute parfois deux coups de grosse caisse collés : un sur le charleston, un juste après.' },
+  { n:4, title:'Libre',     desc:'Aucune contrainte : la grosse caisse peut tomber n\u2019importe où, y compris en séries.' }
+];
+
+const state = { level: 1, density: 4, avoid: true, kick: [], tempo: 90, playing: false, click: false };
+
+function pick(arr, n, exclude) {
+  const pool = arr.filter(i => !exclude.has(i));
+  const out = new Set();
+  while (out.size < n && out.size < pool.length) {
+    out.add(pool[Math.floor(Math.random() * pool.length)]);
+  }
+  return out;
+}
+
+function pickNonAdjacent(arr, n, exclude, avoidAdj) {
+  avoidAdj = avoidAdj || new Set();
+  const pool = arr.filter(i => !exclude.has(i)).sort(() => Math.random() - 0.5);
+  const out = new Set();
+  for (const i of pool) {
+    if (out.size >= n) break;
+    const left = (i - 1 + N) % N, right = (i + 1) % N;
+    if (out.has(left) || out.has(right)) continue;
+    if (avoidAdj.has(left) || avoidAdj.has(right)) continue;
+    out.add(i);
+  }
+  return out;
+}
+
+function generateKick() {
+  const exclude = state.avoid ? new Set([4, 12]) : new Set();
+  const kick = new Set();
+  const target = Math.min(state.density, (state.level === 1 ? ON_BEAT.length : N) - exclude.size);
+
+  if (state.level === 1) {
+    pick(ON_BEAT, target, exclude).forEach(i => kick.add(i));
+  } else if (state.level === 2) {
+    pickNonAdjacent([...ON_BEAT, ...OFF_BEAT], target, exclude).forEach(i => kick.add(i));
+  } else if (state.level === 3) {
+    let remaining = target;
+    if (remaining >= 2 && Math.random() < 0.75) {
+      const anchorCandidates = ON_BEAT.filter(i => !exclude.has(i));
+      if (anchorCandidates.length) {
+        const anchor = anchorCandidates[Math.floor(Math.random() * anchorCandidates.length)];
+        const neighbours = [(anchor + 1) % N, (anchor - 1 + N) % N].filter(i => !exclude.has(i));
+        if (neighbours.length) {
+          const partner = neighbours[Math.floor(Math.random() * neighbours.length)];
+          kick.add(anchor); kick.add(partner);
+          remaining -= 2;
+        }
+      }
+    }
+    pickNonAdjacent([...ON_BEAT, ...OFF_BEAT], remaining, new Set([...exclude, ...kick]), kick).forEach(i => kick.add(i));
+  } else {
+    let remaining = target;
+    if (remaining >= 2 && Math.random() < 0.6) {
+      const runLen = 2 + Math.floor(Math.random() * Math.min(3, remaining - 1));
+      const start = Math.floor(Math.random() * N);
+      for (let k = 0; k < runLen; k++) {
+        const s = (start + k) % N;
+        if (!exclude.has(s)) kick.add(s);
+      }
+      remaining -= runLen;
+    }
+    pick(Array.from({length:N}, (_,i) => i), Math.max(0, remaining), new Set([...exclude, ...kick])).forEach(i => kick.add(i));
+  }
+  return [...kick].sort((a,b)=>a-b);
+}
+
+function renderLevels() {
+  const box = $('#levels');
+  box.innerHTML = LEVELS.map(l => `<button type="button" class="lvl${l.n===state.level?' active':''}" role="radio" aria-checked="${l.n===state.level}" data-n="${l.n}"><b>N${l.n}</b>${l.title}</button>`).join('');
+}
+function renderDesc() { $('#lvlDesc').textContent = LEVELS[state.level-1].desc; }
+
+function renderGrid() {
+  const mk = (on, cls) => Array.from({length:N}, (_,i) => `<div class="cell${on[i] || (Array.isArray(on) && on.includes(i)) ? ' on '+cls : ''}${i%4===0?' beat':''}" data-i="${i}"></div>`).join('');
+  $('#rowHH').innerHTML = mk(HH, 'hh');
+  $('#rowSN').innerHTML = mk(SN, 'sn');
+  $('#rowKK').innerHTML = mk(Array.from({length:N}, (_,i)=>state.kick.includes(i)), 'kk');
+  $('#counts').innerHTML = COUNT_LABELS.map(c => `<span>${c}</span>`).join('');
+}
+
+function gsUrl() {
+  const line = set => Array.from({length:N}, (_,i) => set.has ? (set.has(i)?'x':'-') : (set.includes(i)?'x':'-')).join('');
+  const hh = Array.from({length:N}, (_,i)=> HH[i] ? 'x' : '-').join('');
+  const sn = Array.from({length:N}, (_,i)=> SN[i] ? 'O' : '-').join('');
+  const kk = Array.from({length:N}, (_,i)=> state.kick.includes(i) ? 'o' : '-').join('');
+  const q = new URLSearchParams({ TimeSig:'4/4', Div:'16', Tempo:String(state.tempo), Measures:'1', Title:'KickLab - niveau '+state.level, H:'|'+hh+'|', S:'|'+sn+'|', K:'|'+kk+'|' });
+  return 'https://www.mikeslessons.com/groove/?' + q.toString();
+}
+
+function regenerate() {
+  state.kick = generateKick();
+  renderGrid();
+  $('#gsLink').href = gsUrl();
+}
+
+$('#levels').addEventListener('click', e => {
+  const b = e.target.closest('.lvl'); if (!b) return;
+  state.level = +b.dataset.n;
+  renderLevels(); renderDesc(); regenerate();
+});
+$('#genBtn').addEventListener('click', regenerate);
+$('#density').addEventListener('input', e => { state.density = +e.target.value; $('#densityVal').textContent = state.density; regenerate(); });
+$('#avoidBackbeat').addEventListener('change', e => { state.avoid = e.target.checked; regenerate(); });
+
+/* --- audio --- */
+let actx = null, nextStepTime = 0, stepIdx = 0, timer = null;
+function ctx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+
+function hhSound(t) {
+  const c = ctx(), buf = c.createBuffer(1, c.sampleRate*0.05, c.sampleRate);
+  const d = buf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const hp = c.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000;
+  const g = c.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+  src.connect(hp); hp.connect(g); g.connect(c.destination); src.start(t); src.stop(t+0.06);
+}
+function snSound(t) {
+  const c = ctx(), buf = c.createBuffer(1, c.sampleRate*0.15, c.sampleRate);
+  const d = buf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const bp = c.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800;
+  const g = c.createGain(); g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+  src.connect(bp); bp.connect(g); g.connect(c.destination); src.start(t); src.stop(t+0.16);
+  const o = c.createOscillator(); o.type='triangle'; o.frequency.value=180;
+  const g2 = c.createGain(); g2.gain.setValueAtTime(0.3,t); g2.gain.exponentialRampToValueAtTime(0.001,t+0.1);
+  o.connect(g2); g2.connect(c.destination); o.start(t); o.stop(t+0.1);
+}
+function kkSound(t) {
+  const c = ctx(), o = c.createOscillator(), g = c.createGain();
+  o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+0.12);
+  g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+0.2);
+}
+function clickSound(t) {
+  const c = ctx(), o = c.createOscillator(), g = c.createGain();
+  o.type='square'; o.frequency.value=1500;
+  g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.03);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+0.03);
+}
+
+function scheduler() {
+  const c = ctx(), stepDur = (60/state.tempo)/4;
+  while (nextStepTime < c.currentTime + 0.12) {
+    const i = stepIdx % N;
+    if (HH[i]) hhSound(nextStepTime);
+    if (SN[i]) snSound(nextStepTime);
+    if (state.kick.includes(i)) kkSound(nextStepTime);
+    if (state.click && i % 4 === 0) clickSound(nextStepTime);
+    const when = nextStepTime, idx = i;
+    setTimeout(() => paintPlayhead(idx), Math.max(0, (when - c.currentTime) * 1000));
+    nextStepTime += stepDur; stepIdx++;
+  }
+  timer = setTimeout(scheduler, 25);
+}
+function paintPlayhead(i) {
+  document.querySelectorAll('.cell.playhead').forEach(el => el.classList.remove('playhead'));
+  if (!state.playing) return;
+  document.querySelectorAll(`.cell[data-i="${i}"]`).forEach(el => el.classList.add('playhead'));
+}
+function play() {
+  if (!state.kick.length) regenerate();
+  ctx().resume();
+  state.playing = true; stepIdx = 0; nextStepTime = ctx().currentTime + 0.05;
+  $('#playBtn').textContent = '⏸ Stop'; $('#playBtn').classList.add('on');
+  scheduler();
+}
+function stop() {
+  state.playing = false; clearTimeout(timer);
+  $('#playBtn').textContent = '▶ Jouer'; $('#playBtn').classList.remove('on');
+  document.querySelectorAll('.cell.playhead').forEach(el => el.classList.remove('playhead'));
+}
+$('#playBtn').addEventListener('click', () => state.playing ? stop() : play());
+$('#clickToggle').addEventListener('change', e => { state.click = e.target.checked; });
+$('#tempoUp').addEventListener('click', () => { state.tempo = Math.min(200, state.tempo+4); $('#tempoVal').textContent = state.tempo; $('#gsLink').href = gsUrl(); });
+$('#tempoDown').addEventListener('click', () => { state.tempo = Math.max(40, state.tempo-4); $('#tempoVal').textContent = state.tempo; $('#gsLink').href = gsUrl(); });
+
+renderLevels(); renderDesc(); regenerate();
+})();
+</script>
+</body>
+</html>
